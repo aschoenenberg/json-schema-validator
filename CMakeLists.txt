@@ -1,12 +1,33 @@
 project(nlohmann_json_schema_validator
-        LANGUAGES CXX)
+    LANGUAGES CXX)
 
-set(PROJECT_VERSION 2.1.1)
+set(PROJECT_VERSION 2.1.0)
 
 cmake_minimum_required(VERSION 3.2)
 
-option(BUILD_TESTS    "Build tests"    ON)
-option(BUILD_EXAMPLES "Build examples" ON)
+include(GNUInstallDirs)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -pthread")
+
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
+SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
+
+SET(INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR} CACHE PATH "Installation directory for libraries")
+SET(INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory for executables")
+SET(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation directory for header files")
+if(WIN32 AND NOT CYGWIN)
+  set(DEF_INSTALL_CMAKEDIR CMake)
+else()
+  set(DEF_INSTALL_CMAKEDIR share/cmake/${PROJECT_NAME})
+endif()
+set(INSTALL_CMAKEDIR ${DEF_INSTALL_CMAKEDIR} CACHE PATH "Installation directory for CMake files")
+
+option(BUILD_TESTS      "Build tests"    ON)
+option(BUILD_EXAMPLES   "Build examples" ON)
 
 # the library
 add_library(nlohmann_json_schema_validator
@@ -124,10 +145,11 @@ endif()
 
 if(JSON_VALIDATOR_INSTALL)
     install(TARGETS nlohmann_json_schema_validator
-            EXPORT ${PROJECT_NAME}Targets
-            LIBRARY DESTINATION lib
-            ARCHIVE DESTINATION lib
-            RUNTIME DESTINATION bin)
+                EXPORT nlohmann_json_schema_validatorTargets
+                LIBRARY DESTINATION ${INSTALL_LIBDIR} COMPONENT lib
+                ARCHIVE DESTINATION ${INSTALL_LIBDIR} COMPONENT lib
+                RUNTIME DESTINATION ${INSTALL_BINDIR} COMPONENT bin
+                PUBLIC_HEADER DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT dev)
 
     install(FILES src/nlohmann/json-schema.hpp
             DESTINATION include/nlohmann)
@@ -152,34 +174,37 @@ if (BUILD_TESTS)
 endif()
 
 if(JSON_VALIDATOR_INSTALL)
-    # Set Up the Project Targets and Config Files for CMake
 
-    # Set the install path to the cmake config files
-    set(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_PREFIX}/lib/cmake/${PROJECT_NAME})
+    install(EXPORT
+                nlohmann_json_schema_validatorTargets 
+            NAMESPACE 
+                "nlohmann_json_schema_validator::"
+            DESTINATION
+                ${INSTALL_CMAKEDIR}
+            COMPONENT 
+                dev)
 
-    # Create the ConfigVersion file
-    include(CMakePackageConfigHelpers) # write_basic_package_version_file
-    write_basic_package_version_file( ${PROJECT_NAME}ConfigVersion.cmake
-                                      VERSION ${PACKAGE_VERSION}
-                                      COMPATIBILITY SameMajorVersion)
+    include(CMakePackageConfigHelpers)
 
-    # Get the relative path from the INSTALL_CMAKE_DIR to the include directory
-    file(RELATIVE_PATH REL_INCLUDE_DIR "${INSTALL_CMAKE_DIR}" "${CMAKE_INSTALL_PREFIX}/include")
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/nlohmann_json_schema_validatorConfigVersion.cmake
+        VERSION
+            ${PROJECT_VERSION}
+        COMPATIBILITY
+            SameMajorVersion
+    )
 
+    configure_package_config_file(
+        ${PROJECT_SOURCE_DIR}/nlohmann_json_schema_validatorConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/nlohmann_json_schema_validatorConfig.cmake
+        INSTALL_DESTINATION
+            ${INSTALL_CMAKEDIR}
+    )
 
-    # Configure the Config.cmake file with the proper include directory
-    set(CONF_INCLUDE_DIRS "\${JSON_SCHEMA_VALIDATOR_CMAKE_DIR}/${REL_INCLUDE_DIR}")
-    configure_file(${PROJECT_NAME}Config.cmake.in
-                   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake" @ONLY)
-
-    # Install the Config.cmake and ConfigVersion.cmake files
-    install(FILES
-            "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-            "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-            DESTINATION "${INSTALL_CMAKE_DIR}")
-
-    # Install Targets
-    install(EXPORT ${PROJECT_NAME}Targets
-            FILE ${PROJECT_NAME}Targets.cmake
-            DESTINATION "${INSTALL_CMAKE_DIR}")
+    install(
+        FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/nlohmann_json_schema_validatorConfig.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/nlohmann_json_schema_validatorConfigVersion.cmake
+            DESTINATION ${INSTALL_CMAKEDIR}
+    )
 endif()
